@@ -25,8 +25,14 @@
         }
       },
       "function": {
-        "listTodos": {},
-        "addRandomTodo": {}
+        "listTodos": {
+          "deploymentBucketName": "amplify-amplifydemo3-dev-f966d-deployment",
+          "s3Key": "amplify-builds/listTodos-32573279767937506574-build.zip"
+        },
+        "addRandomTodo": {
+          "deploymentBucketName": "amplify-amplifydemo3-dev-f966d-deployment",
+          "s3Key": "amplify-builds/addRandomTodo-4962696c592f70496d39-build.zip"
+        }
       }
     }
   }

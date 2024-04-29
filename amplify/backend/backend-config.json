@@ -85,6 +85,38 @@
     }
   },
   "parameters": {
+    "AMPLIFY_function_addRandomTodo_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "addRandomTodo"
+        }
+      ]
+    },
+    "AMPLIFY_function_addRandomTodo_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "addRandomTodo"
+        }
+      ]
+    },
+    "AMPLIFY_function_listTodos_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "listTodos"
+        }
+      ]
+    },
+    "AMPLIFY_function_listTodos_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "listTodos"
+        }
+      ]
+    },
     "AMPLIFY_hosting_amplifyhosting_appId": {
       "usedBy": [
         {
