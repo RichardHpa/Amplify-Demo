@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/api';
+import { withAuthenticator } from '@aws-amplify/ui-react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   Button,
   Typography,
@@ -15,18 +18,20 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 
-import { createTodo, deleteTodo, updateTodo } from './graphql/mutations';
+import {
+  createTodo,
+  deleteTodo as deleteTodoQuery,
+  updateTodo as updateTodoQuery,
+} from './graphql/mutations';
 import { listTodos } from './graphql/queries';
-import { withAuthenticator } from '@aws-amplify/ui-react';
-import '@aws-amplify/ui-react/styles.css';
-
-import { Amplify } from 'aws-amplify';
 import amplifyconfig from './amplifyconfiguration.json';
 
 import type { Todo } from './API';
 import type { AuthUser } from 'aws-amplify/auth';
 import type { CreateTodoInput, UpdateTodoInput } from './API';
 import type { UseAuthenticator } from '@aws-amplify/ui-react-core';
+
+import '@aws-amplify/ui-react/styles.css';
 
 Amplify.configure(amplifyconfig);
 
@@ -38,91 +43,98 @@ type AppProps = {
   user?: AuthUser;
 };
 
+const getAllTodos = async () => {
+  const result = await client.graphql({
+    query: listTodos,
+  });
+  return result.data.listTodos.items;
+};
+
+const addNewTodo = async (newTodo: CreateTodoInput) => {
+  const result = await client.graphql({
+    query: createTodo,
+    variables: {
+      input: newTodo,
+    },
+  });
+  return result.data.createTodo;
+};
+
+const updateTodo = async (todo: UpdateTodoInput) => {
+  const result = await client.graphql({
+    query: updateTodoQuery,
+    variables: {
+      input: {
+        id: todo.id,
+        name: todo.name,
+        description: todo.description,
+      },
+    },
+  });
+  return result.data.updateTodo;
+};
+
+const deleteTodo = async (id: string) => {
+  await client.graphql({
+    query: deleteTodoQuery,
+    variables: {
+      input: { id },
+    },
+  });
+};
+
 const App: React.FC<AppProps> = ({ signOut, user }) => {
   const [formState, setFormState] = useState<CreateTodoInput | UpdateTodoInput>(initialState);
-  const [todos, setTodos] = useState<Todo[]>([]);
   const [editing, setEditing] = useState<boolean>(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchTodos();
-  }, []);
+  const { data, isLoading } = useQuery({
+    queryKey: ['todos'],
+    queryFn: getAllTodos,
+  });
 
-  const fetchTodos = async () => {
-    try {
-      const todoData = await client.graphql({
-        query: listTodos,
+  const { mutate: mutationCreate, isPending: isCreatePending } = useMutation({
+    mutationFn: addNewTodo,
+    onSuccess: data => {
+      queryClient.setQueryData(['todos'], (oldData: Todo[] | undefined) => {
+        return oldData ? [...oldData, data] : [data];
       });
-      const todos = todoData.data.listTodos.items;
-      setTodos(todos);
-    } catch (err) {
-      console.log('error fetching todos');
-    }
-  };
-
-  const addTodo = async () => {
-    try {
-      if (!formState.name || !formState.description) return;
-      const todo = { ...formState } as CreateTodoInput;
-
-      const result = await client.graphql({
-        query: createTodo,
-        variables: {
-          input: todo,
-        },
-      });
-
-      setTodos([...todos, result.data.createTodo]);
       setFormState(initialState);
-    } catch (err) {
-      console.log('error creating todo:', err);
-    }
-  };
+    },
+    onError: error => {
+      console.log('error creating todo:', error);
+    },
+  });
 
-  const handleDelete = async (id: string) => {
-    try {
-      await client.graphql({
-        query: deleteTodo,
-        variables: {
-          input: { id },
-        },
+  const { mutate: mutationUpdate, isPending: isUpdatePending } = useMutation({
+    mutationFn: updateTodo,
+    onSuccess: data => {
+      queryClient.setQueryData(['todos'], (oldData: Todo[] | undefined) => {
+        return oldData ? oldData.map(todo => (todo.id === data.id ? data : todo)) : [data];
       });
+      setFormState(initialState);
+      setEditing(false);
+    },
+    onError: error => {
+      console.log('error updating todo:', error);
+    },
+  });
 
-      const newTodos = todos.filter(todo => todo.id !== id);
-      setTodos(newTodos);
-    } catch (err) {
-      console.log('error deleting todo:', err);
-    }
-  };
+  const { mutate: mutationDelete, isPending: isDeletePending } = useMutation({
+    mutationFn: deleteTodo,
+    onSuccess: (data, id) => {
+      queryClient.setQueryData(['todos'], (oldData: Todo[] | undefined) => {
+        return oldData ? oldData.filter(todo => todo.id !== id) : [];
+      });
+    },
+    onError: error => {
+      console.log('error deleting todo:', error);
+    },
+  });
 
   const handleSetEditing = async (todo: Todo) => {
     setEditing(true);
     setFormState(todo);
-  };
-
-  const handleUpdateTodo = async () => {
-    try {
-      if (!formState.name || !formState.description || !formState.id) return;
-      const todo = { ...formState } as UpdateTodoInput;
-
-      const result = await client.graphql({
-        query: updateTodo,
-        variables: {
-          input: {
-            id: todo.id,
-            name: todo.name,
-            description: todo.description,
-          },
-        },
-      });
-
-      const newTodos = todos.map(t => (t.id === todo.id ? result.data.updateTodo : t));
-      setTodos(newTodos);
-
-      setEditing(false);
-      setFormState(initialState);
-    } catch (err) {
-      console.log('error updating todo:', err);
-    }
   };
 
   const handleCancel = () => {
@@ -130,6 +142,7 @@ const App: React.FC<AppProps> = ({ signOut, user }) => {
     setFormState(initialState);
   };
 
+  const isProcessing = isCreatePending || isUpdatePending || isDeletePending;
   return (
     <Container maxWidth="md">
       <Stack gap={2} alignItems="flex-start">
@@ -144,53 +157,81 @@ const App: React.FC<AppProps> = ({ signOut, user }) => {
           value={formState.name}
           placeholder="Name"
           fullWidth
+          disabled={isProcessing}
         />
         <TextField
           onChange={event => setFormState({ ...formState, description: event.target.value })}
           value={formState.description as string}
           placeholder="Description"
           fullWidth
+          disabled={isProcessing}
         />
 
         <Stack direction="row" gap={2}>
-          <Button onClick={editing ? handleUpdateTodo : addTodo} variant="contained">
-            {editing ? 'Update' : 'Create'} todo
-          </Button>
-          {editing && <Button onClick={handleCancel}>Cancel</Button>}
+          {!editing ? (
+            <Button
+              onClick={() => mutationCreate(formState as CreateTodoInput)}
+              variant="contained"
+              disabled={isProcessing}
+            >
+              Create todo
+            </Button>
+          ) : (
+            <>
+              <Button
+                onClick={() => mutationUpdate(formState as UpdateTodoInput)}
+                variant="contained"
+                disabled={isProcessing}
+              >
+                Update todo
+              </Button>
+              <Button onClick={handleCancel} disabled={isProcessing}>
+                Cancel
+              </Button>
+            </>
+          )}
         </Stack>
 
-        <Box sx={{ width: '100%' }}>
-          <List>
-            {todos.map(todo => {
-              return (
-                <ListItem
-                  key={todo.id}
-                  divider
-                  secondaryAction={
-                    <Stack direction="row" gap={2}>
-                      <IconButton
-                        edge="end"
-                        aria-label="edit"
-                        onClick={() => handleSetEditing(todo)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        edge="end"
-                        aria-label="delete"
-                        onClick={() => handleDelete(todo.id)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Stack>
-                  }
-                >
-                  <ListItemText primary={todo.name} secondary={todo.description} />
-                </ListItem>
-              );
-            })}
-          </List>
-        </Box>
+        {isLoading && (
+          <Typography variant="body2" color="text.secondary">
+            Loading Todos...
+          </Typography>
+        )}
+
+        {data && data.length > 0 && (
+          <Box sx={{ width: '100%' }}>
+            <List>
+              {data.map(todo => {
+                return (
+                  <ListItem
+                    key={todo.id}
+                    divider
+                    secondaryAction={
+                      <Stack direction="row" gap={2}>
+                        <IconButton
+                          edge="end"
+                          aria-label="edit"
+                          onClick={() => handleSetEditing(todo)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          edge="end"
+                          aria-label="delete"
+                          onClick={() => mutationDelete(todo.id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    }
+                  >
+                    <ListItemText primary={todo.name} secondary={todo.description} />
+                  </ListItem>
+                );
+              })}
+            </List>
+          </Box>
+        )}
       </Stack>
     </Container>
   );
