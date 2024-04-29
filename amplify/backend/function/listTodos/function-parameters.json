@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "api": {
+      "amplifydemo3": [
+        "Query",
+        "Mutation",
+        "Subscription"
+      ]
+    }
+  },
+  "lambdaLayers": []
+}

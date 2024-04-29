@@ -23,6 +23,9 @@
           "appId": "d1l5shtmbfu7u4",
           "type": "manual"
         }
+      },
+      "function": {
+        "listTodos": {}
       }
     }
   }
