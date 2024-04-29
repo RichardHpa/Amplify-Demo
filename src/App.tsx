@@ -17,8 +17,8 @@ import EditIcon from '@mui/icons-material/Edit';
 
 import { createTodo, deleteTodo, updateTodo } from './graphql/mutations';
 import { listTodos } from './graphql/queries';
-// import { withAuthenticator } from '@aws-amplify/ui-react';
-// import '@aws-amplify/ui-react/styles.css';
+import { withAuthenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
 
 import { Amplify } from 'aws-amplify';
 import amplifyconfig from './amplifyconfiguration.json';
@@ -26,20 +26,19 @@ import amplifyconfig from './amplifyconfiguration.json';
 import type { Todo } from './API';
 import type { AuthUser } from 'aws-amplify/auth';
 import type { CreateTodoInput, UpdateTodoInput } from './API';
-// import { type UseAuthenticator } from '@aws-amplify/ui-react-core';
+import type { UseAuthenticator } from '@aws-amplify/ui-react-core';
 
 Amplify.configure(amplifyconfig);
 
 const initialState: CreateTodoInput = { name: '', description: '' };
 const client = generateClient();
 
-// type AppProps = {
-//   signOut?: UseAuthenticator['signOut']; //() => void;
-//   user?: AuthUser;
-// };
+type AppProps = {
+  signOut?: UseAuthenticator['signOut']; //() => void;
+  user?: AuthUser;
+};
 
-// const App: React.FC<AppProps> = ({ signOut, user }) => {
-const App = () => {
+const App: React.FC<AppProps> = ({ signOut, user }) => {
   const [formState, setFormState] = useState<CreateTodoInput | UpdateTodoInput>(initialState);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [editing, setEditing] = useState<boolean>(false);
@@ -134,10 +133,10 @@ const App = () => {
   return (
     <Container maxWidth="md">
       <Stack gap={2} alignItems="flex-start">
-        {/* <Typography variant="h3">Hello {user?.username}</Typography>
+        <Typography variant="h3">Hello {user?.username}</Typography>
         <Button onClick={signOut} variant="contained" color="secondary">
           Sign out
-        </Button> */}
+        </Button>
         <Typography variant="h3">Amplify Todos</Typography>
 
         <TextField
@@ -197,5 +196,4 @@ const App = () => {
   );
 };
 
-// export default withAuthenticator(App);
-export default App;
+export default withAuthenticator(App);
