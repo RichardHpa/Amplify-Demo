@@ -25,7 +25,8 @@
         }
       },
       "function": {
-        "listTodos": {}
+        "listTodos": {},
+        "addRandomTodo": {}
       }
     }
   }
